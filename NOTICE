@@ -1,0 +1,92 @@
+# NOTICE
+
+本文件列出本仓库（RoCE 软件架构与网络编程教程）所引用的**第三方作品**及其许可条款。
+
+本仓库自身的许可见 [`LICENSE`](LICENSE)。**本文件所列内容的版权归各上游项目所有，不受本仓库许可覆盖。**
+
+---
+
+## 1. 引用的上游源代码
+
+本教程为教学目的，在正文中引用了以下项目的**简短代码片段与接口定义**。每处引用均以 `<项目>:<相对路径>:<行号>` 的形式标注了出处。
+
+### 1.1 Linux 内核（Linux Kernel）
+
+- **来源**：<https://github.com/torvalds/linux>（本教程核对版本：7.2.8）
+- **许可**：GNU General Public License v2.0（GPL-2.0），部分文件为 GPL-2.0 或更新版本
+- **许可全文**：<https://www.kernel.org/pub/linux/kernel/COPYING>
+- **本教程引用的主要文件**（均为教学性摘录）：
+  - `include/rdma/ib_verbs.h`、`include/rdma/ib_addr.h`、`include/rdma/ib_pack.h`、`include/rdma/uverbs_ioctl.h`、`include/rdma/uverbs_types.h`、`include/linux/cgroup_rdma.h`
+  - `include/uapi/rdma/ib_user_verbs.h`、`ib_user_ioctl_cmds.h`、`mlx5-abi.h`、`rdma_user_cm.h`
+  - `drivers/infiniband/core/`（`verbs.c`、`rdma_core.c`、`uverbs_ioctl.c`、`uverbs_uapi.c`、`cache.c`、`roce_gid_mgmt.c`、`cma.c`、`ucma.c`、`umem.c`、`cgroup.c`、`counters.c`、`sysfs.c`、`device.c`）
+  - `drivers/infiniband/hw/mlx5/`（`main.c`、`qp.c`、`qpc.c`、`wr.c`、`ah.c`、`cq.c`、`cong.c`、`macsec.c`、`doorbell.c`、`ib_rep.c`）
+  - `drivers/infiniband/sw/rxe/`（`rxe_hdr.h`、`rxe_net.c`、`rxe_qp.c`、`rxe_verbs.c`、`rxe_comp.c`、`rxe_resp.c`、`rxe_req.c`、`rxe_icrc.c`、`rxe_mr.c`、`rxe_opcode.c`、`rxe.h`）
+  - `drivers/net/ethernet/mellanox/mlx5/core/`（`port.c`、`en/port.c`、`en_stats.c`、`eq.c`、`cq.c`、`dev.c`、`lib/gid.c`、`eswitch*.c`、`sriov.c`、`lag/`）
+  - `kernel/cgroup/rdma.c`
+  - `include/linux/mlx5/qp.h`、`include/linux/mlx5/doorbell.h`、`include/linux/mlx5/device.h`
+
+> **GPL-2.0 提示**：上述内核代码在**再分发时**需遵守 GPL-2.0。本教程对其的使用属于**简短摘录 + 出处标注**的教学性引用。若你希望把本教程中的内核代码片段并入自己的项目，请自行判断并遵守 GPL-2.0（或在可能的情况下直接引用上游原文）。
+
+### 1.2 rdma-core
+
+- **来源**：<https://github.com/linux-rdma/rdma-core>（本教程核对版本：66.0，`IBVERBS_PABI_VERSION` 65）
+- **许可**：**双重许可** —— GPL-2.0 **或** OpenIB-BSD（用户可选择任一）
+- **许可全文**：见上游仓库 `COPYING` 与各文件头部声明
+- **本教程引用的主要文件**：
+  - `libibverbs/`（`verbs.h`、`verbs.c`、`device.c`、`init.c`、`cmd_fallback.c`、`cmd_ioctl.c`、`cmd_cq.c`、`driver.h`、`libibverbs.map.in`、`cmake/config.h.in`、`kernel-headers/CMakeLists.txt`）
+  - `libibverbs/examples/`（`rc_pingpong.c`、`pingpong.c`、`devinfo.c`、`asyncwatch.c`）
+  - `librdmacm/`（`cma.c`、`acm.c`、`rsocket.c`、`CMakeLists.txt`、`examples/rdma_client.c`、`examples/rdma_server.c`）
+  - `providers/mlx5/`（`mlx5.c`、`mlx5.h`、`mlx5dv.h`、`qp.c`、`verbs.c`、`mlx5_vfio.c`、`dr_*.c`）
+  - `kernel-headers/`（ABI 结构定义）
+  - `pyverbs/`、`tests/`、`infiniband-diags/`、`Documentation/`
+
+> **提示**：rdma-core 的**双重许可**意味着你可以选择 **OpenIB-BSD**（宽松、非传染）分支来使用其中的代码，这通常比 GPL-2.0 更省事。
+
+### 1.3 perftest
+
+- **来源**：<https://github.com/linux-rdma/perftest>（本教程核对版本：6.30）
+- **许可**：**双重许可** —— GPL-2.0 **或** OpenIB-BSD
+- **许可全文**：见上游仓库 `COPYING`
+- **本教程引用的主要文件**：`src/perftest_parameters.{c,h}`、`perftest_resources.{c,h}`、`perftest_communication.{c,h}`、`perftest_negotiation.{c,h}`、`get_clock.c`、`memory.h`、`host_memory.c`、`validation_common.h`、`host_validation.c`、`multicast_resources.c`、`Makefile.am`、`configure.ac`
+
+---
+
+## 2. 引用的规范与标准
+
+本教程在描述协议行为时参考了以下**公开规范**。规范文本本身**未**被复制到本仓库；对规范内容的表述均为**本教程作者依据公开信息与源码实现的重新撰写**。
+
+- **InfiniBand Architecture Specification**（IBTA）—— RoCEv2 / BTH / 传输语义的权威定义
+- **IEEE 802.1Qbb** —— Priority-based Flow Control (PFC)
+- **IEEE 802.1Qaz** —— Enhanced Transmission Selection (ETS)
+- **RFC 3168** —— The Addition of Explicit Congestion Notification (ECN) to IP
+- **RFC 2474** —— Definition of the Differentiated Services Field (DS Field)
+- **IANA Service Name and Transport Protocol Port Number Registry** —— UDP 端口 4791（RoCEv2）
+
+---
+
+## 3. 第三方工具
+
+本教程引用（但**未分发**）以下工具的用法与输出格式。这些工具由各自项目提供：
+
+- `iproute2` 提供的 `rdma` 命令（`rdma link` / `rdma res` / `rdma statistic`）
+- `mlnx_qos`、`mlxconfig`、`mlxlink`、`ofed_info`（NVIDIA MLNX_OFED 工具集）
+- `show_gids`（**OFED 附带脚本，不在 rdma-core 中** —— 本教程已明确标注此归属）
+- `tcpdump`、`Wireshark`、`strace`、`jq`、`ethtool`、`devlink`
+- 交换机厂商 CLI（NVIDIA Cumulus / Onyx、Cisco 等）—— 仅作语法示例
+
+---
+
+## 4. 关于本教程此前版本的说明
+
+本教程的早期草稿曾包含一份基于**第三方培训材料截图**整理的术语转录文档（`docs/reference/glossary-from-images.md`）与相应的 `images/` 截图目录。
+
+- **该转录文档已被重写**：现在的内容为作者**依据源码重新撰写**的术语说明，**不再逐字复制**第三方材料。
+- **`images/` 目录已从版本控制中排除**（见 [`.gitignore`](.gitignore)），因其来源与授权未能确认。
+
+如果你是该第三方材料的权利人并对本仓库内容有异议，请通过仓库 issue 联系，我们将及时处理。
+
+---
+
+## 5. 免责声明
+
+本教程作者与上述任何项目、公司或组织**均无关联**。所有商标归其各自所有者所有。本教程不代表任何上游项目的官方立场，其中的错误与遗漏由本教程作者负责。

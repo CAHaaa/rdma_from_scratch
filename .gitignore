@@ -1,0 +1,98 @@
+# ============================================================
+#  RoCE 教程仓库 .gitignore
+#  目的：只发布「教程正文」，不发布上游源码快照、
+#        未确认授权的第三方截图、以及内部工作文件。
+# ============================================================
+
+# ---------- 1. 上游源码快照（体积巨大，且非本教程内容） ----------
+# 这三个目录是只读参考用的上游仓库副本。
+# ⚠️ 它们本身含有第三方隐私数据（真实 GUID、公网 IP 等），
+#    且总计数十万文件，绝不可提交。
+/linux-7.2.8/
+/rdma-core-master/
+/perftest-master/
+
+# 解压后的目录名变体（仅匹配仓库根，避免误伤 docs 内的同名子目录）
+/linux-[0-9]*/
+/rdma-core*/
+/perftest*/
+
+# ---------- 2. 第三方截图（来源与授权未确认） ----------
+# 47 张 JPEG 截图来自第三方培训材料，版权未解决。
+# 详见 NOTICE 第 4 节。
+/images/
+
+# ---------- 3. 内部工作文件（含对抗性自评，不宜公开） ----------
+/fix-log.md
+/review-report.md
+/RDMA-sensitivity-audit.md
+/*review-report*.md
+/*sensitivity-audit*.md
+/fix-log*.md
+
+# ---------- 4. 编译产物 / 构建目录 ----------
+build/
+_build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+autom4te.cache/
+config.status
+config.log
+libtool
+.deps/
+.libs/
+
+# 仅忽略编译产物扩展名（放在根与常见源码目录语义下均为通用做法）
+*.o
+*.ko
+*.so
+*.so.*
+*.a
+*.lo
+*.la
+*.d
+*.dirstamp
+
+# ---------- 5. 教程示例程序编译出的可执行文件 ----------
+# （读者按教程编译产生的二进制，不应进入版本库）
+/minfo
+/trace_obj
+/cm_server
+/cm_client
+/pd_isolation
+/flag_test
+/rkey_lifetime
+/roce-healthcheck
+/roce_observe
+/roce-security-audit
+/roce_config_snapshot
+/roce_sample
+/roce_res_audit
+/gid_report
+
+# 抓包文件（体积大且含本机网络信息）
+*.pcap
+*.pcapng
+*.cap
+
+# ---------- 6. 编辑器和操作系统垃圾 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.code-workspace
+
+# ---------- 7. 临时文件与本地私有笔记 ----------
+*.tmp
+*.bak
+*.orig
+*.rej
+NOTES.local.md
+TODO.local.md
+*.private.md
