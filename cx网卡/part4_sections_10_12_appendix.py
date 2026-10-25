@@ -57,7 +57,7 @@ def add_section_10(doc):
         ("RoCE 能通但吞吐只有一半", "ECN 过激、PFC 频繁、MTU/FEC、PCIe 瓶颈", "看 ECN 标记率、PFC pause、`ethtool -S` 错误、`mlxlink`", "先分离是网络还是主机；不要先调 CC 参数"),
         ("时延周期性尖刺", "PFC headroom 不足、buffer 满、CNP 延迟", "看 buffer max usage、pause duration、CNP 计数", "先保证不丢包，再谈降时延"),
         ("PFC 配了但计数为 0", "priority 不匹配、PFC 未真正 enable、DCBX 覆盖", "`mlnx_qos -i`、交换机 oper 状态、抓包看 PFC", "先让 PFC 真正生效，再调阈值"),
-        ("PFC 计数高但无丢包", "ECN 阈值太高、PFC 在替 ECN 干活", "看 ECN 标记率与 CNP", "降低 ECN Kmin / 提高 Pmax，让 ECN 先动作"),
+        ("PFC 计数高但无丢包", "ECN 阈值太高、PFC 在替 ECN 干活", "看 ECN 标记率与 CNP", "降低 ECN Kmin（必要时降低 Kmax），让 ECN 先动作"),
         ("no-buffer-discard 增长", "headroom 不足、cable length 错、Xoff 太高", "看 buffer max usage、cable_len、MTU", "按第 6 章重算，不要只加 Xoff"),
         ("ECN 标记高但吞吐不降", "RP 未 enable、CNP 没回来、priority mask 错", "看 RP enable、CNP 计数、`ROCE_CC_PRIO_MASK`", "先修 CNP 路径，再调阈值"),
         ("CNP 计数低", "NP 未 enable、CNP 被丢/被 pause、DSCP 映射错", "看 NP enable、TC6 strict、DSCP 48 映射", "CNP 必须独立且最高优先"),
@@ -188,7 +188,7 @@ def add_section_12(doc):
     NUMBERED(doc, [
         "**PFC 是逐跳流控，DCQCN 是端到端拥塞控制**；两者互补，不能互相替代。[S3][S5][S8]",
         "**Lossless 需要 PFC + ECN 一起设计**；只开 PFC 会把拥塞变成反压，只开 ECN 在严重 incast 下仍可能丢包。[S10][S13]",
-        "**默认值是最好的起点**：RoCE priority 3 / DSCP 26、CNP 48/6、ECN 150 KB–1.5 MB、DCQCN 默认参数；先基线，再调优。[S6][S10][S12][S13]",
+        "**NVIDIA 常见默认值是最好的起点**：RoCE priority 3 / DSCP 26、CNP 48/6、ECN 150 KB–1.5 MB、DCQCN 默认参数；先基线，再调优。[S6][S10][S12][S13]",
         "**PFC 的成败在 headroom、cable length、Xoff/Xon、watchdog**；这些比“把 Xoff 调大”更重要。[S8][S9][S12]",
         "**运行时配置不是持久的**；PFC/trust/ECN 要纳入启动项，固件参数用 mlxconfig 并重启。[S14][S15]",
     ])
@@ -203,7 +203,7 @@ def add_section_12(doc):
         "主机 trust 与 fabric 的 L2/L3 方案一致。",
         "PFC 只开在 RoCE priority；交换机与主机两端一致。",
         "ECN 在正确的 TC 启用；Kmin/Kmax/Pmax 已按平台单位确认。",
-        "CNP 的 DSCP/PCP 与交换机映射一致；CNP 不会被 PFC 暂停。",
+        "CNP 的 DSCP/PCP 与交换机映射一致；CNP 不应被 PFC 暂停。",
         "headroom/Xoff/Xon/cable length/MTU 按最坏情况核对。",
         "PFC watchdog 与主机 stall prevention 已评估并配置。",
         "已用 4:1/8:1 incast 验证，不只看单流。",
@@ -268,7 +268,8 @@ ethtool -S $IF | grep -E "prio${P}_(rx|tx)_pause|pause_storm"
 # 查询
 mlxconfig -d $DEV query | grep -E 'ROCE_CC|CNP_|LINK_TYPE'
 
-# 只开 priority 3；如参数带端口后缀，用 _P1/_P2
+# 只开 priority 3（按 8 位掩码理解 bit3=8；先 query 确认参数名）
+# 如参数带端口后缀，用 _P1/_P2
 mlxconfig -d $DEV -y set ROCE_CC_PRIO_MASK=8 CNP_DSCP=48 CNP_802P_PRIO=6
 
 # 复核 + 重启
@@ -431,6 +432,12 @@ def add_appendix_d(doc):
 
     H2(doc, "文档维护")
     P(doc, "建议在以下时机复核本文：① 固件/驱动大版本升级；② 交换机 NOS 升级；③ 新增 lossless 业务或改变超配比；④ 发生 PFC 风暴/大面积丢包后；⑤ 每季度例行。复核时至少重跑第 9 章的单流、incast、重启持久化和回滚四项。")
+    H2(doc, "修订记录")
+    rows = [
+        ("v1.0", "2026-10-25", "初版：12 章 + 4 附录，覆盖 DCQCN/ECN/PFC 设计、配置、验收与排障。"),
+        ("v1.1", "2026-10-25", "事实核查修订：统一 Onyx/Cumulus ECN 单位表述；修正 CNP 的 ECN 默认状态；弱化 ROCE_CC_PRIO_MASK 掩码推导；修正 PFC 计数高时的 ECN 动作；删除无出处的参数/计数器名称。"),
+    ]
+    TABLE(doc, ["版本", "日期", "说明"], rows, [2.0, 3.0, 11.0], font_size=8.4, first_col_bold=True)
     H2(doc, "免责声明")
     P(doc, "NVIDIA 文档会随固件、驱动、交换机 NOS 版本变化；同一参数在不同型号上也可能有不同默认值。本文给出的命令和数值用于建立可复现的基线，不构成对任何特定集群的性能承诺。生产变更前必须在同等固件/驱动的实验环境验证，并准备回滚方案。")
 

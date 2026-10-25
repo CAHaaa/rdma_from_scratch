@@ -179,7 +179,7 @@ def add_section_1(doc):
     rows = [
         ("PFC 与 DCQCN 不是替代关系", "PFC 是逐跳、逐优先级的链路反压；DCQCN 是端到端、基于 ECN/CNP 的速率控制。前者防瞬时溢出，后者防持续拥塞。", "[S3][S5][S8]"),
         ("RoCEv2 有两条合法路线", "Lossless：PFC + ECN/DCQCN；Lossy：只靠 ECN/DCQCN + 传输层重传。选哪条由业务对丢包/时延的容忍度决定。", "[S10][S13]"),
-        ("NVIDIA 常见默认值不是协议强制值", "RoCE 常用 priority 3 / DSCP 26，CNP 常用 DSCP 48 / PCP 6；Onyx 默认 ECN 150–1500，Cumulus 默认 150 KB–1.5 MB。数值必须端到端一致，不能只看单台设备。", "[S6][S10][S12][S13]"),
+        ("NVIDIA 常见默认值不是协议强制值", "RoCE 常用 priority 3 / DSCP 26，CNP 常用 DSCP 48 / PCP 6；Onyx 默认 ECN 150–1500 KB（150 KB–1.5 MB），Cumulus 写作 150000/1500000 字节，量级一致但显示单位不同。数值必须端到端一致，不能只看单台设备。", "[S6][S10][S12][S13][S17]"),
         ("PFC 的成败在缓冲与水线", "Xoff 之前要有足够 headroom 吸收在途报文；cable length、MTU、速率、Xoff/Xon 任一错配，都会表现为“配了 PFC 仍然丢包”或“PFC 频繁触发”。", "[S9][S12]"),
         ("CNP 必须被优先转发", "接收端网卡生成 CNP 回送源端；CNP 被丢、被 pause、或被排到数据后面，DCQCN 就会失效或过冲。", "[S5][S6][S10]"),
         ("持久化要单独设计", "mlxconfig 的固件参数可跨重启保留；PFC/trust/ECN sysfs 等运行时配置通常需要在每次启动后重新应用。", "[S14][S15]"),

@@ -32,7 +32,7 @@ def add_section_7(doc):
     P(doc, "下面是 NVIDIA 文档中常见的 RoCE 默认规划：RoCE 数据 priority 3、DSCP 26；CNP priority 6、DSCP 48。它不是协议强制值，但作为起点最容易与 NVIDIA 的默认 profile 对齐。")
     rows = [
         ("RoCEv2 数据", "DSCP 26 / PCP 3", "3", "3", "开（仅此 priority）", "开", "lossless 主业务"),
-        ("CNP", "DSCP 48 / PCP 6", "6", "6", "不开", "不标记", "strict，不能被 pause"),
+        ("CNP", "DSCP 48 / PCP 6", "6", "6", "不开", "默认不启用", "strict，不应被 pause"),
         ("普通 TCP/管理", "DSCP 0 / PCP 0", "0", "0", "不开", "可开", "lossy/best effort"),
     ]
     TABLE(doc, ["流量", "标记（典型）", "SP", "TC", "PFC", "ECN", "说明"], rows,
@@ -84,7 +84,7 @@ def add_section_7(doc):
     rows = [
         ("Lossless", "PFC + ECN/DCQCN", "存储、HPC、AI 训练等对丢包/重传敏感、fabric 可控的场景", "配置复杂、PFC storm、缓冲成本高", "[S10][S13]"),
         ("Lossy", "ECN/DCQCN，无 PFC", "可重传、多租户、跨 L3、运维希望更简单的场景", "时延/抖动、乱序、重传；拥塞严重时仍会丢包", "[S10][S13]"),
-        ("Semi-lossless", "边缘单向 PFC + ECN", "主机到 ToR 微突发严重、但不想把 pause 扩散到全网", "不是端到端零丢包；边界仍需 ECN/缓冲", "[S10]"),
+        ("Semi-lossless", "边缘单向 PFC；fabric 保持 lossy/ECN", "主机到 ToR 微突发严重、但不想把 pause 扩散到全网", "不是端到端零丢包；边界仍需 ECN/缓冲", "[S10]"),
     ]
     TABLE(doc, ["模式", "机制", "适用", "代价/风险", "依据"], rows, [2.8, 3.6, 5.0, 3.0, 1.6], font_size=8.1, first_col_bold=True)
     P(doc, "选择顺序：先问业务能否容忍重传/乱序；不能才上 lossless。不要因为“PFC 听起来更稳”就默认全闪；PFC 的运维复杂度往往高于 ECN。")
@@ -159,7 +159,7 @@ cat /sys/class/net/$IF/ecn/roce_rp/enable/$P \
 # 1) 先看参数名和当前值
 mlxconfig -d $DEV query | grep -E 'ROCE_CC|CNP_|LINK_TYPE'
 
-# 2) 只对 priority 3 启用 DCQCN（bit3 = 8）
+# 2) 只对 priority 3 启用 DCQCN（按 8 位掩码理解 bit3=8；先 query 确认）
 #    如果 query 显示参数带端口后缀，则用 ROCE_CC_PRIO_MASK_P1 / CNP_DSCP_P1 ...
 mlxconfig -d $DEV -y set \
   ROCE_CC_PRIO_MASK=8 \
@@ -173,7 +173,7 @@ mlxconfig -d $DEV query | grep -E 'ROCE_CC|CNP_'
 reboot
 """, size=8.0)
     BULLETS(doc, [
-        "`ROCE_CC_PRIO_MASK=255` 表示 8 个 priority 全开，是 Network Operator 的 RoCE 优化默认；只承载一个 RoCE priority 时，用 8（bit3）更干净。[S15]",
+        "`ROCE_CC_PRIO_MASK=255` 表示 8 个 priority 全开，是 Network Operator 的 RoCE 优化默认；只承载一个 RoCE priority 时，按 8 位掩码理解可用 8（bit3），但写入前务必用 `mlxconfig query` 确认参数名和描述。[S15]",
         "`CNP_DSCP=48`、`CNP_802P_PRIO=6` 是 NVIDIA 默认；如果你的 fabric 把 CNP 映射到别的 SP/TC，必须同步改，不能只改一半。[S6]",
         "固件参数是持久化的；这正是它与 `mlnx_qos`/sysfs 的区别。[S14][S15]",
         "如果只是改 CNP 的 DSCP/PCP，不需要动 `LINK_TYPE`；不要为了“重置”而改链路类型。",

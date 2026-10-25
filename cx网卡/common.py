@@ -3,9 +3,9 @@
 
 DOC_TITLE = "ConnectX-6 网卡 RoCEv2 拥塞控制与 PFC 流控实施指南"
 DOC_SUBTITLE = "基于 NVIDIA 官方文档的 DCQCN / ECN / PFC 设计、配置、验证与运维"
-DOC_VERSION = "v1.0"
+DOC_VERSION = "v1.1"
 DOC_DATE = "2026-10-25"
-OUT_DOCX = "ConnectX-6_RoCEv2_拥塞控制与PFC实施指南_v1.0.docx"
+OUT_DOCX = "ConnectX-6_RoCEv2_拥塞控制与PFC实施指南_v1.1.docx"
 
 SOURCES = [
     {
@@ -125,6 +125,6 @@ SOURCES = [
         "title": "NVIDIA Onyx User Manual — QoS Commands",
         "version": "Onyx 3.10.4800",
         "url": "https://networking-docs.nvidia.com/onyxum/3.10.4800/qos-commands",
-        "use": "trust 默认值、DSCP/PCP 到 switch-priority 的默认映射",
+        "use": "trust 默认值、DSCP/PCP 映射、ECN absolute threshold 的 KB 单位",
     },
 ]

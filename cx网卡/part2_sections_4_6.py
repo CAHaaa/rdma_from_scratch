@@ -39,7 +39,7 @@ def add_section_4(doc):
 
     H2(doc, "拥塞点：交换机如何标记", "4.3")
     P(doc, "DCQCN 的拥塞点通常是交换机 Egress 队列。队列超过 Kmin 后，标记概率线性上升；到 Kmax 达到 Pmax。Kmin 太低会过早降速、吞吐受损；Kmin 太高会让缓冲先被填满，PFC 甚至丢包先发生。Kmax 与 Kmin 的间隔决定标记的“渐进程度”。[S5]")
-    CALLOUT(doc, "单位陷阱", "Onyx 的 `show roce` 默认显示 `Min : 150 / Max : 1500`；Cumulus 的默认 RoCE profile 写的是 150000 / 1500000 字节。两者不是同一套显示单位，不能把 150 直接当字节，也不能把 150000 直接套到 Onyx。配置前先确认 NOS、ASIC、TC 和单位。", "warn")
+    CALLOUT(doc, "单位陷阱", "Onyx 的 `show roce` 默认显示 `Min : 150 / Max : 1500`，单位是 KB（Onyx 命令文档明确 `minimum-absolute`/`maximum-absolute` 以 KB 计），即 150 KB–1.5 MB；Cumulus 的默认 RoCE profile 写的是 150000/1500000 字节，量级相同。两者数字不同，是因为显示单位不同，不是两套相距 1000 倍的阈值。配置前仍要确认 NOS、ASIC、TC 和单位，不能把 150 直接当字节。", "warn")
     P(doc, "NVIDIA 的 Onyx RoCE lossless 默认还把 CNP 放到 TC6 strict、RoCE 数据放 TC3 WRR 50%、其他流量放 TC0 WRR 50%。这是一套“让 CNP 先走”的默认调度，不是所有厂商都必须照搬的固定值。[S10][S11]")
 
     H2(doc, "通知点：CNP 如何回送", "4.4")
@@ -72,7 +72,7 @@ def add_section_4(doc):
 
     H2(doc, "默认参数速览", "4.6")
     rows = [
-        ("ROCE_CC_PRIO_MASK", "Enable（所有优先级）", "按优先级启用 DCQCN；255 表示 8 个优先级全开", "[S6][S15]"),
+        ("ROCE_CC_PRIO_MASK", "Enable（逐优先级）", "按优先级启用 DCQCN；255 表示 8 个优先级全开", "[S6][S15]"),
         ("DCE_TCP_G / dce_tcp_g", "1019", "α 更新权重（10 bit 定点）", "[S6]"),
         ("DCE_TCP_RTT / dce_tcp_rtt", "1 µs", "α 更新周期", "[S6]"),
         ("RPG_GD / rpg_gd", "11", "降速指数；越小越狠", "[S6]"),
@@ -102,7 +102,7 @@ def add_section_5(doc):
 
     H2(doc, "参数总表", "5.1")
     rows = [
-        ("ROCE_CC_PRIO_MASK", "Enable", "按优先级启用 DCQCN。255 = 所有 8 个优先级；只开 priority 3 时按位掩码为 8（bit3）。", "写成 0 会关闭该优先级 CC；按端口命名时用 `_P1/_P2`。", "[S6][S15]"),
+        ("ROCE_CC_PRIO_MASK", "Enable", "按优先级启用 DCQCN。255 = 所有 8 个优先级；按 8 位掩码理解，priority 3 对应 8（bit3），写入前以设备 query 为准。", "写成 0 会关闭该优先级 CC；按端口命名时用 `_P1/_P2`。", "[S6][S15]"),
         ("DCE_TCP_G / dce_tcp_g", "1019", "α 的 EWMA 权重；10 bit 定点，1019/1024≈0.995。", "改变 α 的收敛速度；不要和 RPG_GD 同时调。", "[S6]"),
         ("DCE_TCP_RTT / dce_tcp_rtt", "1 µs", "α 更新周期。", "调大更平滑但反应慢；调小更敏感但可能抖动。", "[S6]"),
         ("INITIAL_ALPHA_VALUE", "1023", "第一次收到 CNP 时的 α 初值。", "调低会减弱首次降速；通常保持默认。", "[S6]"),
@@ -111,7 +111,7 @@ def add_section_5(doc):
         ("RPG_MIN_RATE", "1 Mb/s", "QP 最低速率。", "调高避免饿死但可能降不下来；调低可能长时间低吞吐。", "[S6]"),
         ("RPG_GD", "11", "降速公式的指数；越小降速越狠。", "优先保持默认；确需调整时每次只动 1。", "[S6]"),
         ("RATE_REDUCE_MONITOR_PERIOD", "4 µs", "两次降速之间的观察窗口。", "调大更平滑但反应慢；调小可能过度反应。", "[S6]"),
-        ("CLAMP_TGT_RATE", "Disable", "控制连续 CNP 时 TargetRate 的更新方式。", "影响恢复速度；与 `CLAMP_TGT_RATE_AFTER_TIME_INC` 相关，需查本机。", "[S6]"),
+        ("CLAMP_TGT_RATE", "Disable", "控制连续 CNP 时 TargetRate 的更新方式。", "影响恢复速度；具体行为以本机参数说明为准。", "[S6]"),
         ("RPG_TIME_RESET", "300 µs", "升速定时器。", "调小恢复更快但更易再次拥塞；调大恢复慢。", "[S6]"),
         ("RPG_BYTE_RESET", "32767（64 B 单位，约 2 MB）", "升速字节计数器。", "调小恢复更快；调大对大流更保守。", "[S6]"),
         ("RPG_THRESHOLD", "1", "进入 AI/HAI 前需要的连续触发次数。", "调大更保守；默认 1 已很激进。", "[S6]"),
@@ -155,7 +155,7 @@ cat /sys/class/net/$IF/ecn/roce_np/params/cnp_dscp
         "**再看 NP**：确认接收端 ECN enable、CNP 生成计数在增长、CNP DSCP/PCP 与交换机映射一致。",
         "**再看 RP**：确认发送端 ECN enable、`ROCE_CC_PRIO_MASK` 覆盖了 RoCE priority、CNP 能被收到。",
         "**最后才动 α/速率参数**：先调交换机阈值，再调 RP 的 AI/HAI 或 RPG_GD；一次只动一个变量。",
-        "**用 incast 验证**：单流不会触发持续 ECN；至少 4:1、8:1 的多打一，才能看到 CNP 和降速。",
+        "**用 incast 验证**：单流通常不足以触发持续 ECN；至少 4:1、8:1 的多打一，才能稳定看到 CNP 和降速。",
         "**保留基线**：记录调参前后的吞吐、P99 时延、ECN 标记率、PFC pause、`out_of_sequence`。",
     ])
 
