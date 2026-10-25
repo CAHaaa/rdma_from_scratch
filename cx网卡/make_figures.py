@@ -1,321 +1,204 @@
 # -*- coding: utf-8 -*-
-"""Generate the diagrams used by the CX6 lecture handout and slide deck."""
-from pathlib import Path
+"""Simplified, readable diagrams for the ConnectX-6 CC/PFC guide (Pillow only)."""
 from PIL import Image, ImageDraw, ImageFont
+import os
 
-OUT = Path("assets")
-OUT.mkdir(exist_ok=True)
+S = 3  # supersampling; logical canvas scaled by 3
+FONT = r"C:\Windows\Fonts\msyh.ttc"
+FONT_B = r"C:\Windows\Fonts\msyhbd.ttc"
 
-# ---------- palette ----------
-NAVY = (11, 31, 58)
-NAVY2 = (22, 50, 88)
-GREEN = (118, 185, 0)
-GREEN_D = (78, 128, 0)
-TEAL = (0, 150, 148)
-AMBER = (232, 155, 0)
-TEXT = (26, 32, 44)
-MUTED = (96, 108, 126)
-LINE = (214, 221, 230)
-WHITE = (255, 255, 255)
-BG = (247, 249, 252)
-BLUE_L = (232, 240, 250)
-GREEN_L = (236, 246, 224)
-AMBER_L = (255, 246, 224)
-GRAY_L = (241, 244, 248)
-
-FONT = "C:/Windows/Fonts/msyh.ttc"
-FONT_B = "C:/Windows/Fonts/msyhbd.ttc"
-MONO = "C:/Windows/Fonts/consola.ttf"
+NAVY = "#0B2545"
+BLUE = "#1F4E79"
+TEAL = "#2A9D8F"
+ORANGE = "#C26A12"
+RED = "#B42318"
+GRAY = "#5B6B7C"
+LIGHT_BLUE = "#EEF4FA"
+LIGHT_GREEN = "#EEF8F5"
+WHITE = "#FFFFFF"
+BORDER = "#D6DEE7"
 
 
-def f(size, bold=False):
-    return ImageFont.truetype(FONT_B if bold else FONT, size)
+def sc(v):
+    return int(round(v * S))
 
 
-def fm(size):
-    return ImageFont.truetype(MONO, size)
+def font(size, bold=False):
+    return ImageFont.truetype(FONT_B if bold else FONT, sc(size))
 
 
-def wrap(draw, text, font, max_w):
-    lines = []
-    for para in text.split("\n"):
-        cur = ""
-        for ch in para:
-            trial = cur + ch
-            if draw.textlength(trial, font=font) <= max_w or not cur:
-                cur = trial
-            else:
-                lines.append(cur)
-                cur = ch
-        lines.append(cur)
-    return lines
+def text(draw, xy, s, size=18, color=NAVY, bold=False, anchor="la", align="left", spacing=1.25):
+    draw.multiline_text(
+        (sc(xy[0]), sc(xy[1])), s, font=font(size, bold), fill=color,
+        anchor=anchor, align=align, spacing=sc(size * (spacing - 1.0))
+    )
 
 
-def draw_para(draw, xy, text, font, fill, max_w, line_gap=8, align="left"):
-    x, y = xy
-    lines = wrap(draw, text, font, max_w)
-    lh = font.size * 1.35
-    for line in lines:
-        if align == "center":
-            w = draw.textlength(line, font=font)
-            draw.text((x + (max_w - w) / 2, y), line, font=font, fill=fill)
-        else:
-            draw.text((x, y), line, font=font, fill=fill)
-        y += lh + line_gap
-    return y
+def text_bg(draw, xy, s, size=18, color=NAVY, bold=False, anchor="ma", align="center",
+            spacing=1.25, pad=5, bg=WHITE):
+    f = font(size, bold)
+    bbox = draw.multiline_textbbox(
+        (sc(xy[0]), sc(xy[1])), s, font=f, anchor=anchor, align=align,
+        spacing=sc(size * (spacing - 1.0))
+    )
+    draw.rounded_rectangle(
+        [bbox[0] - sc(pad), bbox[1] - sc(pad), bbox[2] + sc(pad), bbox[3] + sc(pad)],
+        radius=sc(3), fill=bg
+    )
+    draw.multiline_text(
+        (sc(xy[0]), sc(xy[1])), s, font=f, fill=color,
+        anchor=anchor, align=align, spacing=sc(size * (spacing - 1.0))
+    )
 
 
-def rrect(draw, box, radius, fill, outline=None, width=2, shadow=True):
-    x0, y0, x1, y1 = box
-    if shadow:
-        draw.rounded_rectangle((x0 + 8, y0 + 10, x1 + 8, y1 + 10), radius=radius,
-                               fill=(226, 231, 238))
-    draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width)
+def box(draw, x, y, w, h, fill, outline, width=2.2, radius=10):
+    draw.rounded_rectangle(
+        [sc(x), sc(y), sc(x + w), sc(y + h)],
+        radius=sc(radius), fill=fill, outline=outline, width=sc(width)
+    )
 
 
-def pill(draw, xy, text, font, fill, fg=WHITE, padx=22, pady=10):
-    x, y = xy
-    w = draw.textlength(text, font=font)
-    h = font.size + pady * 2
-    draw.rounded_rectangle((x, y, x + w + padx * 2, y + h), radius=h // 2, fill=fill)
-    draw.text((x + padx, y + pady - 2), text, font=font, fill=fg)
-    return w + padx * 2
+def arrow(draw, x1, y1, x2, y2, color, width=3.0, double=False, dashed=False, head=13):
+    import math
+    x1, y1, x2, y2 = sc(x1), sc(y1), sc(x2), sc(y2)
+    w = sc(width)
+    if dashed:
+        dx, dy = x2 - x1, y2 - y1
+        length = math.hypot(dx, dy)
+        if length == 0:
+            return
+        ux, uy = dx / length, dy / length
+        dash, gap = sc(12), sc(9)
+        pos = 0
+        while pos < length:
+            end = min(pos + dash, length)
+            draw.line([(x1 + ux * pos, y1 + uy * pos), (x1 + ux * end, y1 + uy * end)],
+                      fill=color, width=w)
+            pos += dash + gap
+    else:
+        draw.line([(x1, y1), (x2, y2)], fill=color, width=w)
+
+    ang = math.atan2(y2 - y1, x2 - x1)
+    h = sc(head)
+    p1 = (x2 - h * math.cos(ang - math.pi / 7), y2 - h * math.sin(ang - math.pi / 7))
+    p2 = (x2 - h * math.cos(ang + math.pi / 7), y2 - h * math.sin(ang + math.pi / 7))
+    draw.polygon([(x2, y2), p1, p2], fill=color)
+    if double:
+        ang2 = ang + math.pi
+        p3 = (x1 - h * math.cos(ang2 - math.pi / 7), y1 - h * math.sin(ang2 - math.pi / 7))
+        p4 = (x1 - h * math.cos(ang2 + math.pi / 7), y1 - h * math.sin(ang2 + math.pi / 7))
+        draw.polygon([(x1, y1), p3, p4], fill=color)
 
 
-# =========================================================
-# Figure 1 - stack comparison
-# =========================================================
-def fig_stack():
-    W, H = 2400, 1350
-    img = Image.new("RGB", (W, H), BG)
+def architecture():
+    W, H = 1320, 610
+    img = Image.new("RGB", (sc(W), sc(H)), WHITE)
     d = ImageDraw.Draw(img)
 
-    d.text((100, 52), "同一件事，两套栈", font=f(64, True), fill=NAVY)
-    d.text((100, 138), "自研网卡通常只有一个入口；ConnectX-6 把能力分散在六个标准层里",
-           font=f(29), fill=MUTED)
+    # ECN domain band
+    d.rectangle([sc(25), sc(25), sc(1295), sc(100)], fill=LIGHT_GREEN, outline="#CFE6E2", width=sc(1.0))
+    text(d, (45, 38), "ECN / DCQCN：端到端闭环", 24, TEAL, True)
+    text(d, (45, 72), "CP 标记 CE  →  NP 生成 CNP  →  RP 调整速率", 15, GRAY, False)
 
-    # headers
-    lx, rx, cw = 100, 1270, 1030
-    rrect(d, (lx, 220, lx + cw, 290), 14, NAVY2, None, shadow=False)
-    d.text((lx + 30, 237), "自研网卡（典型形态）", font=f(30, True), fill=WHITE)
-    rrect(d, (rx, 220, rx + cw, 290), 14, GREEN_D, None, shadow=False)
-    d.text((rx + 30, 237), "NVIDIA ConnectX-6（标准分层）", font=f(30, True), fill=WHITE)
+    # CNP path
+    arrow(d, 990, 128, 330, 128, TEAL, 2.6, dashed=True, head=12)
+    text_bg(d, (660, 84), "CNP：DSCP 48 / PCP 6，strict", 16, TEAL, True, "ma")
 
-    left = [
-        ("L5  运维面", "厂商 CLI / 私有 REST / 单一日志入口"),
-        ("L4  配置面", "私有配置文件 + 厂商工具"),
-        ("L3  数据面", "自研 PMD / 内核驱动 / 私有流表"),
-        ("L2  驱动", "自研驱动，与固件强绑定"),
-        ("L1  固件", "私有格式，随驱动包发布"),
-        ("L0  硬件", "自研 ASIC / FPGA"),
-    ]
-    right = [
-        ("L5  运维面", "ethtool · devlink · sysfs · mlxlink"),
-        ("L4  配置面", "mlxconfig · mlnx_qos · iproute2 · tc"),
-        ("L3  数据面", "RDMA verbs · DPDK mlx5 · OVS ASAP² · NVMe-oF"),
-        ("L2  驱动", "mlx5_core（inbox 或 DOCA-OFED）"),
-        ("L1  固件", "MFT 工具链（mlxfwmanager / flint）"),
-        ("L0  硬件", "CX6 VPI · CX6 Dx · CX6 Lx"),
-    ]
+    # Host A
+    box(d, 50, 160, 280, 250, "#EAF2FB", BLUE, 2.4)
+    text(d, (190, 192), "服务器 A", 30, NAVY, True, "ma")
+    text(d, (190, 232), "ConnectX-6", 18, GRAY, False, "ma")
+    text(d, (190, 278), "RP 反应点", 24, BLUE, True, "ma")
+    text(d, (190, 320), "按 CNP 调整 QP 速率", 17, NAVY, False, "ma")
 
-    y0, bh, gap = 318, 128, 18
-    for i, ((ln, lt), (rn, rt)) in enumerate(zip(left, right)):
-        y = y0 + i * (bh + gap)
-        rrect(d, (lx, y, lx + cw, y + bh), 12, WHITE, LINE, 2)
-        d.rectangle((lx, y + 18, lx + 8, y + bh - 18), fill=(150, 160, 175))
-        d.text((lx + 30, y + 20), ln, font=f(21, True), fill=MUTED)
-        draw_para(d, (lx + 30, y + 55), lt, f(26), TEXT, cw - 60, line_gap=2)
+    # Switch
+    box(d, 460, 150, 400, 270, "#FFF7E8", ORANGE, 2.6)
+    text(d, (660, 184), "交换机", 30, NAVY, True, "ma")
+    text(d, (660, 226), "CP 拥塞点", 24, ORANGE, True, "ma")
+    text(d, (660, 270), "ECN 标记", 18, NAVY, False, "ma")
+    text(d, (660, 310), "Egress 队列 / Kmin / Kmax", 16, GRAY, False, "ma")
+    text(d, (660, 360), "Ingress PG / Xoff / Xon", 16, GRAY, False, "ma")
 
-        rrect(d, (rx, y, rx + cw, y + bh), 12, WHITE, (198, 220, 170), 2)
-        d.rectangle((rx, y + 18, rx + 8, y + bh - 18), fill=GREEN)
-        d.text((rx + 30, y + 20), rn, font=f(21, True), fill=GREEN_D)
-        draw_para(d, (rx + 30, y + 55), rt, f(26), TEXT, cw - 60, line_gap=2)
+    # Host B
+    box(d, 990, 160, 280, 250, "#EAF7F4", TEAL, 2.4)
+    text(d, (1130, 192), "服务器 B", 30, NAVY, True, "ma")
+    text(d, (1130, 232), "ConnectX-6", 18, GRAY, False, "ma")
+    text(d, (1130, 278), "NP 通知点", 24, TEAL, True, "ma")
+    text(d, (1130, 320), "生成 CNP 回送源端", 17, NAVY, False, "ma")
 
-    # centre arrows and labels
-    cy = y0 + 3 * (bh + gap) - gap // 2
-    for dy, label in [(-250, "标准接口"), (0, "多层可替换"), (250, "版本矩阵")]:
-        yy = cy + dy
-        d.line((1150, yy, 1250, yy), fill=NAVY, width=5)
-        d.polygon([(1150, yy), (1166, yy - 10), (1166, yy + 10)], fill=NAVY)
-        d.polygon([(1250, yy), (1234, yy - 10), (1234, yy + 10)], fill=NAVY)
-        tw = d.textlength(label, font=f(20, True))
-        d.rounded_rectangle((1200 - tw / 2 - 12, yy - 44, 1200 + tw / 2 + 12, yy - 8),
-                            radius=8, fill=BG)
-        d.text((1200 - tw / 2, yy - 40), label, font=f(20, True), fill=NAVY)
+    # Data path
+    arrow(d, 330, 455, 460, 455, BLUE, 3.4, head=13)
+    arrow(d, 860, 455, 990, 455, BLUE, 3.4, head=13)
+    text(d, (395, 430), "RoCEv2 数据", 18, BLUE, True, "ma")
+    text(d, (925, 430), "CE 标记", 18, BLUE, True, "ma")
 
-    # bottom callout
-    rrect(d, (100, 1205, 2300, 1305), 14, (255, 255, 255), GREEN, 3, shadow=False)
-    d.rectangle((100, 1205, 112, 1305), fill=GREEN)
-    d.text((140, 1222), "课程的主线：", font=f(25, True), fill=GREEN_D)
-    d.text((330, 1220), "不要问“CX6 的配置命令是什么”，先问“这件事归哪一层管”。",
-           font=f(27), fill=TEXT)
+    # PFC band
+    d.rectangle([sc(25), sc(500), sc(1295), sc(595)], fill=LIGHT_BLUE, outline=BORDER, width=sc(1.0))
+    text(d, (45, 506), "PFC：逐跳链路反压（不提供端到端语义）", 20, BLUE, True)
+    arrow(d, 330, 572, 460, 572, ORANGE, 2.8, double=True, head=12)
+    arrow(d, 860, 572, 990, 572, ORANGE, 2.8, double=True, head=12)
+    text(d, (395, 546), "PFC", 18, ORANGE, True, "ma")
+    text(d, (925, 546), "PFC", 18, ORANGE, True, "ma")
 
-    img.save(OUT / "fig_stack_compare.png", quality=95)
-    print("saved", OUT / "fig_stack_compare.png")
+    out = os.path.join("assets", "fig_architecture.png")
+    img.save(out, dpi=(300, 300))
+    print("saved", out, img.size)
 
 
-# =========================================================
-# Figure 2 - 12 difference points
-# =========================================================
-def fig_map():
-    W, H = 2400, 1350
-    img = Image.new("RGB", (W, H), BG)
+def pfc_buffer():
+    W, H = 1320, 470
+    img = Image.new("RGB", (sc(W), sc(H)), WHITE)
     d = ImageDraw.Draw(img)
 
-    d.text((100, 48), "差异通常落在哪里：12 个落点", font=f(60, True), fill=NAVY)
-    d.text((100, 128), "从“认卡”到“调优”，每一个落点都对应一组标准工具和一份文档",
-           font=f(28), fill=MUTED)
+    text(d, (30, 15), "PFC 缓冲与阈值", 26, NAVY, True)
+    text(d, (30, 50), "Xoff 触发 Pause；Xon 解除 Pause；两者之间留回差", 16, GRAY, False)
 
-    # legend
-    x = 100
-    for label, color in [("① 识别与版本", NAVY2), ("② 配置与数据面", GREEN_D), ("③ 生态与运维", AMBER)]:
-        x += pill(d, (x, 188), label, f(20, True), color) + 18
+    # Headroom
+    d.rounded_rectangle([sc(70), sc(95), sc(1250), sc(165)], radius=sc(8),
+                        fill="#FFF1E6", outline=ORANGE, width=sc(2.2))
+    text(d, (660, 130), "Headroom：吸收 Xoff 后仍在链路上的报文", 22, ORANGE, True, "mm")
 
-    items = [
-        ("01", "认卡与型号", "lspci · mlxfwmanager --query", "先分清 VPI / Dx / Lx", NAVY2),
-        ("02", "驱动安装", "inbox mlx5_core vs DOCA-OFED", "版本线与 OS 兼容矩阵", NAVY2),
-        ("03", "固件升级", "mlxfwmanager · mlxfwreset", "PSID 与固件分支必须匹配", NAVY2),
-        ("04", "固件参数", "mlxconfig q / set / backup", "改完要重启或 fwreset", NAVY2),
-        ("05", "设备命名", "netdev · ibdev · representor", "一张卡至少五个名字", GREEN_D),
-        ("06", "链路与光模块", "ethtool -m · mlxlink", "物理层问题先看这里", GREEN_D),
-        ("07", "队列与中断", "ethtool -L / -G / -C", "改队列会重置 RSS 表", GREEN_D),
-        ("08", "Offload", "ethtool -K · tc flower", "软件能看到的不等于硬件在做", GREEN_D),
-        ("09", "RoCE 与 QoS", "cma_roce_mode · mlnx_qos", "PFC 必须端到端配置", GREEN_D),
-        ("10", "SR-IOV", "sriov_numvfs · switchdev", "VF 未解绑不能切模式", AMBER),
-        ("11", "DPDK / OVS", "bifurcated · ASAP²", "不要把 mlx5 绑到 vfio-pci", AMBER),
-        ("12", "调优与监控", "tuned · sysfs · devlink health", "四个计数器来源要对上", AMBER),
-    ]
+    # Main reserved buffer
+    x0, y0, w, h = 70, 240, 1180, 80
+    d.rounded_rectangle([sc(x0), sc(y0), sc(x0 + w), sc(y0 + h)], radius=sc(8),
+                        fill="#E8F0F8", outline=BLUE, width=sc(2.2))
+    used_w = w * 0.66
+    d.rectangle([sc(x0), sc(y0), sc(x0 + used_w), sc(y0 + h)], fill="#BFD3E8")
+    text(d, (x0 + used_w / 2, y0 + h / 2), "Reserved 缓冲", 22, NAVY, True, "mm")
 
-    cw, ch, gx, gy = 700, 228, 40, 30
-    x0, y0 = 100, 252
-    for i, (num, title, cmd, note, color) in enumerate(items):
-        col, row = i % 3, i // 3
-        x = x0 + col * (cw + gx)
-        y = y0 + row * (ch + gy)
-        fill = {NAVY2: BLUE_L, GREEN_D: GREEN_L, AMBER: AMBER_L}[color]
-        rrect(d, (x, y, x + cw, y + ch), 16, WHITE, LINE, 2)
-        d.rectangle((x, y, x + 10, y + ch), fill=color)
-        d.rounded_rectangle((x + 28, y + 24, x + 100, y + 78), radius=12, fill=color)
-        d.text((x + 44, y + 32), num, font=f(28, True), fill=WHITE)
-        d.text((x + 118, y + 28), title, font=f(30, True), fill=NAVY)
-        draw_para(d, (x + 28, y + 96), cmd, fm(21), color, cw - 56, line_gap=1)
-        draw_para(d, (x + 28, y + 152), note, f(21), MUTED, cw - 56, line_gap=1)
+    # Xon / Xoff
+    xon_x = x0 + w * 0.42
+    xoff_x = x0 + w * 0.82
+    for x, color in ((xon_x, TEAL), (xoff_x, RED)):
+        y = y0 - 25
+        while y < y0 + h + 35:
+            d.line([sc(x), sc(y), sc(x), sc(min(y + 10, y0 + h + 35))], fill=color, width=sc(3))
+            y += 18
 
-    img.save(OUT / "fig_difference_map.png", quality=95)
-    print("saved", OUT / "fig_difference_map.png")
+    text_bg(d, (xon_x, y0 - 42), "占用降到 Xon", 16, TEAL, True, "ma")
+    text_bg(d, (xoff_x, y0 - 42), "占用升到 Xoff", 16, RED, True, "ma")
+    text_bg(d, (xon_x, y0 + h + 45), "Xon：停 Pause", 18, TEAL, True, "ma")
+    text_bg(d, (xoff_x, y0 + h + 45), "Xoff：发 Pause", 18, RED, True, "ma")
 
+    # Hysteresis bracket
+    by = y0 + h + 20
+    d.line([sc(xon_x), sc(by), sc(xoff_x), sc(by)], fill=GRAY, width=sc(1.4))
+    d.polygon([(sc(xon_x), sc(by)), (sc(xon_x + 6), sc(by - 5)), (sc(xon_x + 6), sc(by + 5))], fill=GRAY)
+    d.polygon([(sc(xoff_x), sc(by)), (sc(xoff_x - 6), sc(by - 5)), (sc(xoff_x - 6), sc(by + 5))], fill=GRAY)
+    text_bg(d, ((xon_x + xoff_x) / 2, by - 14), "回差", 16, GRAY, True, "mb")
 
-# =========================================================
-# Figure 3 - documentation map
-# =========================================================
-def fig_docs():
-    W, H = 2400, 1350
-    img = Image.new("RGB", (W, H), BG)
-    d = ImageDraw.Draw(img)
+    # Headroom arrow
+    arrow(d, 70, 165, 70, 235, ORANGE, 2.0, head=10)
+    text(d, (88, 195), "单独预留\n不能全用到 Xoff", 14, ORANGE, False, "lm", "left", 1.3)
 
-    d.text((100, 48), "CX6 文档地图：按层找，不要按“卡”找", font=f(58, True), fill=NAVY)
-    d.text((100, 126), "同一张卡，六层文档；每层回答不同的问题",
-           font=f(28), fill=MUTED)
+    # Bottom note
+    text(d, (660, 442), "Xon < Xoff；lossless PG 的 reserved 至少覆盖 Xoff", 16, GRAY, False, "ma")
 
-    rows = [
-        ("L5", "应用 / 生态", "DPDK mlx5 PMD · rdma-core · OVS · SPDK", "写代码、做卸载、跑存储", GREEN_D),
-        ("L4", "配置 / 工具", "ethtool · devlink · mlnx_qos · sysfs", "日常配置与排障", GREEN_D),
-        ("L3", "驱动 / 栈", "MLNX_OFED 24.10 · DOCA-OFED · Release Notes", "安装、升级、兼容性", NAVY2),
-        ("L2", "固件工具", "MFT · mlxconfig · mlxlink · mlxfwmanager", "改卡、刷机、看链路", NAVY2),
-        ("L1", "硬件手册", "CX6 VPI User Manual · CX6 Dx User Manual", "上架、接线、规格", AMBER),
-        ("L0", "发布 / 兼容", "Firmware Release Notes · Compatibility Matrix", "选版本、查支持", AMBER),
-    ]
-
-    x0, y0, w, h, gap = 100, 218, 2200, 150, 18
-    for i, (lid, lname, docs, when, color) in enumerate(rows):
-        y = y0 + i * (h + gap)
-        rrect(d, (x0, y, x0 + w, y + h), 14, WHITE, LINE, 2)
-        d.rectangle((x0, y, x0 + 12, y + h), fill=color)
-        # layer badge
-        d.rounded_rectangle((x0 + 34, y + 34, x0 + 148, y + 116), radius=12,
-                            fill=color)
-        d.text((x0 + 58, y + 48), lid, font=f(34, True), fill=WHITE)
-
-        d.text((x0 + 190, y + 28), lname, font=f(26, True), fill=color)
-        draw_para(d, (x0 + 190, y + 70), docs, f(25), TEXT, 1230, line_gap=2)
-
-        d.line((x0 + 1480, y + 28, x0 + 1480, y + h - 28), fill=LINE, width=2)
-        d.text((x0 + 1520, y + 28), "什么时候看", font=f(19, True), fill=MUTED)
-        draw_para(d, (x0 + 1520, y + 66), when, f(23), TEXT, 620, line_gap=2)
-
-    # right edge note
-    d.text((100, 1252), "入口：docs.nvidia.com/networking  ·  networking-docs.nvidia.com  ·  enterprise-support.nvidia.com",
-           font=f(22), fill=MUTED)
-
-    img.save(OUT / "fig_doc_map.png", quality=95)
-    print("saved", OUT / "fig_doc_map.png")
-
-
-# =========================================================
-# Figure 4 - one card, many names
-# =========================================================
-def fig_names():
-    W, H = 2400, 1000
-    img = Image.new("RGB", (W, H), BG)
-    d = ImageDraw.Draw(img)
-
-    d.text((100, 44), "一张卡，至少五个名字", font=f(58, True), fill=NAVY)
-    d.text((100, 120), "排障的第一步不是看日志，而是建立 PCI · netdev · ibdev · VF/representor · MST 的映射",
-           font=f(26), fill=MUTED)
-
-    # central card
-    cx0, cy0, cw, ch = 850, 190, 700, 128
-    rrect(d, (cx0, cy0, cx0 + cw, cy0 + ch), 16, NAVY2, None, shadow=True)
-    d.text((cx0 + 30, cy0 + 20), "PCI 设备（BDF）", font=f(20, True), fill=(180, 205, 230))
-    d.text((cx0 + 30, cy0 + 56), "0000:3b:00.0", font=fm(40), fill=WHITE)
-
-    # horizontal bus
-    bus_y = 375
-    d.line((100, bus_y, 2300, bus_y), fill=(170, 183, 200), width=4)
-    d.line((1200, cy0 + ch, 1200, bus_y), fill=(170, 183, 200), width=4)
-
-    nodes = [
-        ("PF netdev", "ens1f0np0", "ip link · ethtool", 100, BLUE_L, NAVY2),
-        ("RDMA 设备", "mlx5_0", "ibv_devinfo · rdma link", 550, BLUE_L, NAVY2),
-        ("VF netdev", "ens1f0v0", "虚拟机内 ip link", 1000, GREEN_L, GREEN_D),
-        ("VF representor", "pf0vf0", "switchdev 模式", 1450, GREEN_L, GREEN_D),
-        ("MFT 设备", "/dev/mst/\nmt4123_pciconf0", "mlxconfig · mlxlink", 1900, AMBER_L, AMBER),
-    ]
-
-    nw, nh, ny = 400, 178, 435
-    for label, name, tool, x, fill, color in nodes:
-        cx = x + nw / 2
-        d.line((cx, bus_y, cx, ny), fill=(170, 183, 200), width=3)
-        d.ellipse((cx - 7, bus_y - 7, cx + 7, bus_y + 7), fill=color)
-        rrect(d, (x, ny, x + nw, ny + nh), 14, fill, color, 2)
-        d.text((x + 22, ny + 16), label, font=f(20, True), fill=color)
-        draw_para(d, (x + 22, ny + 46), name, fm(25), TEXT, nw - 44, line_gap=1)
-        d.text((x + 22, ny + 136), "看这里：" + tool, font=f(17), fill=MUTED)
-
-    # three common misreadings
-    notes = [
-        ("把 VF 当 PF", "ens1f0v0 是虚拟机里的口，不是主机 PF。"),
-        ("在 ethtool 找 RoCE 计数", "RoCE 计数在 IB sysfs，不在 netdev。"),
-        ("把 MST 名当固定值", "mt4123 只是 CX6 常见值，以 mst status -v 为准。"),
-    ]
-    for i, (t, s) in enumerate(notes):
-        x = 100 + i * 750
-        rrect(d, (x, 650, x + 700, 785), 12, WHITE, LINE, 2, shadow=False)
-        d.rectangle((x, 650, x + 7, 785), fill=(150, 160, 175))
-        d.text((x + 24, 666), t, font=f(23, True), fill=NAVY)
-        draw_para(d, (x + 24, 706), s, f(20), MUTED, 650, line_gap=1)
-
-    # callout
-    rrect(d, (100, 850, 2300, 930), 12, WHITE, GREEN, 3, shadow=False)
-    d.text((130, 868), "建议：把这张映射表写进你们的《上机检查单》，比记住任何一条命令都重要。",
-           font=f(26, True), fill=GREEN_D)
-
-    img.save(OUT / "fig_names_map.png", quality=95)
-    print("saved", OUT / "fig_names_map.png")
+    out = os.path.join("assets", "fig_pfc_buffer.png")
+    img.save(out, dpi=(300, 300))
+    print("saved", out, img.size)
 
 
 if __name__ == "__main__":
-    fig_stack()
-    fig_map()
-    fig_docs()
-    fig_names()
+    architecture()
+    pfc_buffer()

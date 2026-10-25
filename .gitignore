@@ -96,3 +96,6 @@ desktop.ini
 NOTES.local.md
 TODO.local.md
 *.private.md
+
+# 独立项目提案（不属于教程正文，是否发布另行决定）
+/PROPOSAL-*.md
